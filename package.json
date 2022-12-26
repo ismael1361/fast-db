@@ -1,0 +1,31 @@
+{
+  "name": "fast-db",
+  "version": "0.0.1",
+  "description": "Fast and efficient database, without much effort in terms of hardware or software and locally with the possibility of working very easily and malleably, with the possibility of respecting the serialized method. An alternative for those looking to replace MySql or NoSql, and for those who are familiar with JSON.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ismael1361/fast-db.git"
+  },
+  "keywords": [
+    "db-local",
+    "local",
+    "db",
+    "database",
+    "json",
+    "database",
+    "schema",
+    "json",
+    "mongoose",
+    "nosql"
+  ],
+  "author": "https://github.com/ismael1361",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ismael1361/fast-db/issues"
+  },
+  "homepage": "https://github.com/ismael1361/fast-db#readme"
+}
