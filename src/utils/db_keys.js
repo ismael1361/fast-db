@@ -24,7 +24,7 @@ DbKeys.prototype.__start = function(){
         try{
             this.db_file.read((context, line)=>{
                 if(line%2 == 0){ this.keys.push([context, line+1]); }
-            }, ()=>{
+            }, async ()=>{
                 resolve();
             });
         }catch(e){
@@ -33,15 +33,77 @@ DbKeys.prototype.__start = function(){
     });
 }
 
-DbKeys.prototype.__findPath = function(path){
+DbKeys.prototype.__findPath = function(path, paths){
     path = path.replace(/^(\/+)/gi, "").replace(/(\/+)$/gi, "");
-    return this.keys.filter(([p, l]) => p.indexOf(path) === 0);
+    return (Array.isArray(paths) ? paths : this.keys).filter(([p, l]) => {
+        const np = p.indexOf(path) === 0 ? p.substring(path.length, p.length) : p;
+        return p.indexOf(path) === 0 && (/^(\[\d+\])?\//gi).test(np);
+    });
+}
+
+DbKeys.prototype.__parsePath = async function(path, paths, context){
+    path = path.replace(/^(\/+)/gi, "").replace(/(\/+)$/gi, "");
+
+    const findIndex = this.keys.findIndex(([p, l]) => p === path);
+
+    if(findIndex >= 0){
+        return await this.db_file.getLine(this.keys[findIndex][1]);
+    }
+
+    let result = {};
+
+    paths = this.__findPath(path, paths).map(([p, l]) => {
+        return [p.substring(path.length, p.length).replace(/^(\/+)/gi, ""), l];
+    });
+
+    if(paths.every(([p, l]) => (/^(\[\d+\])\//gi).test(p))){
+        result = [];
+    }
+
+    context = context ? context : (await this.db_file.getLine(...paths.map(([p, l]) => l))).reduce((obj, value, i)=>{
+        const [p, l] = paths[i];
+        obj[l] = value;
+        return obj;
+    }, {});
+
+    for(let i=0; i<paths.length; i++){
+        const [p, l] = paths[i];
+
+        let keys = p.split("/");
+        let key = keys.shift();
+        let index = ((/^(\[\d+\])$/gi).test(key) ? parseInt(key.replace(/[\D]/gi, "")) : (key).replace(/(\[\d+\])$/gi, ""));
+
+        if(keys.length < 1){
+            result[index] = context[l];
+        }else if((/^([\S\s]+)(\[\d+\])$/g).test(key)){
+            if(!result[index]){
+                let is_array = this.__findPath(index, paths).map(([p, l]) => {
+                    return [p.substring(index.length, p.length).replace(/^(\/+)/gi, ""), l];
+                }).every(([p, l]) => (/^(\[\d+\])\//gi).test(p));
+
+                result[index] = is_array ? [] : {};
+            }
+
+            let i = parseInt(key.match(/\[(\d+)\]$/i)[1]);
+
+            if(!result[index][i]){
+                result[index][i] = await this.__parsePath(key, paths, context);
+            }
+        }else if(!result[index]){
+            result[index] = await this.__parsePath(key, paths, context);
+        }
+    }
+
+    return result;
 }
 
 DbKeys.prototype.get = function(path){
     return new Promise(async (resolve, reject)=>{
         try{
             path = path.replace(/^(\/+)/gi, "").replace(/(\/+)$/gi, "");
+            path = ["DB", path].join("/");
+
+            return resolve(await this.__parsePath(path));
 
             let result = {};
 
@@ -80,7 +142,8 @@ DbKeys.prototype.get = function(path){
 
             resolve(result);
         }catch(e){
-            reject(typeof e !== "string" ? e.message : e);
+            console.log(e);
+            reject("Content not found!");
         }
     });
 }

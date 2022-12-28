@@ -1,42 +1,27 @@
 const { resolve, dirname } = require("path");
-const { existsSync, mkdirSync, createWriteStream } = require("fs");
+const { existsSync, mkdirSync, createWriteStream, writeFileSync } = require("fs");
 const { uniqueid, File, dbKeys } = require("./utils");
+
+const { DataBase } = require("./api");
 
 const fastDb = function(path = "databases"){
     const databasePath = resolve(path);
-    if(!existsSync(dirname(databasePath))) mkdirSync(dirname(databasePath));
+    if(!existsSync(databasePath)) mkdirSync(databasePath);
 
-    const db_file = new File(databasePath);
+    const dbFile = resolve(databasePath, ".db");
+    if(!existsSync(dbFile)) writeFileSync(dbFile, Buffer.from("", 'utf8'), {flag: 'wx'});
 
-    const db_keys = new dbKeys(db_file);
+    const storagePath = resolve(databasePath, "storage");
+    if(!existsSync(storagePath)) mkdirSync(storagePath);
 
-    //db_file.setLine(`Souza`).catch(console.log);
-
-    //const context = await db_file.getLine(10, 2, 5, 100).catch(console.log);
-
-    //console.log(context);
-
-    /*const logger = createWriteStream(resolve(databasePath, ".db"), { flags: 'a'});
-    const writeLine = (line) => logger.write(`${line}\n`);
-
-    for(let i=0; i<1000; i++){
-        writeLine(uniqueid(200));
-    }*/
+    const db = new DataBase(dbFile);
 
     return {
         //Schema: (model, schema) => Schema(model, schema, path, readOnFind),
-        onInit: (fn) => {
-            if(db_keys.readed && typeof fn === "function"){
-                fn();
-            }else{
-                db_keys.onFinalled = function(){
-                    if(db_keys.readed && typeof fn === "function"){
-                        fn();
-                    }
-                }
-            }
-        },
-        get: (...args) => dbKeys.prototype.get.apply(db_keys, args)
+        database: db
+        /*database: {
+            get: (...args) => dbKeys.prototype.get.apply(db_keys, args)
+        }*/
     };
 }
 
